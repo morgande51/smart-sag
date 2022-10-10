@@ -3,8 +3,11 @@ package org.nge.smartsag.domain;
 import java.io.Serializable;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import lombok.Data;
 
@@ -46,11 +49,24 @@ public class Ride implements Serializable {
 		return sos;	
 	}
 	
-	public SAGRequest closeSAGRequest(Long sagRequestId, SAGRequestStatus status) {
+	public SAGRequest closeSOS(String referenceId, SAGRequestStatus status) {
 		SAGRequest sos = sosRequests.stream()
-				.filter(r -> r.getId().equals(sagRequestId)).findAny().orElseThrow(() -> new UnknownSAGRequest(sagRequestId));
+				.filter(r -> r.getReferenceId().equals(referenceId))
+				.findAny()
+				.orElseThrow(() -> new UnknownSAGRequest(referenceId));
 		sos.close(status);
 		return sos;
+	}
+	
+	public Set<SAGRequest> getActiveSOS() {
+		Set<SAGRequest> activeRequest = Collections.emptySet();
+		if (sosRequests != null) {
+			activeRequest = sosRequests.stream()
+				.filter(r -> r.getStatus() == SAGRequestStatus.ACTIVE)
+				.sorted(Comparator.comparing(SAGRequest::getRequestedAt))
+				.collect(Collectors.toSet());
+		}
+		return activeRequest;
 	}
 
 	private static final long serialVersionUID = 1L;

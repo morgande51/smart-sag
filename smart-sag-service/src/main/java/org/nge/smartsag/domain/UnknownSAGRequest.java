@@ -2,13 +2,13 @@ package org.nge.smartsag.domain;
 
 import lombok.Getter;
 
-public class UnknownSAGRequest extends RuntimeException {
+public class UnknownSAGRequest extends SAGException {
 	
 	@Getter
-	private Long sagRequestId;
+	private String referenceId;
 	
-	public UnknownSAGRequest(Long id) {
-		this.sagRequestId = id;
+	public UnknownSAGRequest(String id) {
+		this.referenceId = id;
 	}
 	
 	private static final long serialVersionUID = 1L;

@@ -2,17 +2,16 @@ package org.nge.smartsag.domain;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import lombok.Data;
 
 @Data
 public class SAGRequest implements Serializable {
 	
-	private Long id;
+	private SAGRequestId id;
 	
-	private User cyclist;
-	
-	private Ride ride;
+	private String referenceId;
 	
 	private ZonedDateTime requestedAt;
 	
@@ -22,18 +21,30 @@ public class SAGRequest implements Serializable {
 	
 	private Coordinates lastKnowLocation;
 	
+	public User getCyclist() {
+		return id.getCyclist();
+	}
+	
+	public Ride getRide() {
+		return id.getRide();
+	}
+	
 	public void close(SAGRequestStatus sagStatus) {
 		this.status = sagStatus;
-		completedAt = ZonedDateTime.now(ride.getStartAt().getZone());
+		completedAt = ZonedDateTime.now(getRide().getStartAt().getZone());
 	}
 	
 	public static SAGRequest from(User user, Ride ride, Coordinates latLong) {
+		SAGRequestId id = new SAGRequestId();
+		id.setCyclist(user);
+		id.setRide(ride);
+		
 		SAGRequest request = new SAGRequest();
 		request.setStatus(SAGRequestStatus.ACTIVE);
-		request.setCyclist(user);
-		request.setRide(ride);
+		request.setId(id);
 		request.setRequestedAt(ZonedDateTime.now(ride.getEventTimeZone()));
 		request.setLastKnowLocation(latLong);
+		request.setReferenceId(UUID.randomUUID().toString());
 		return request;
 	}
 	
