@@ -34,13 +34,17 @@ public class SAGRequest implements Serializable {
 		completedAt = ZonedDateTime.now(getRide().getStartAt().getZone());
 	}
 	
+	public boolean isActive() {
+		return status != SAGRequestStatus.CANCELED && status != SAGRequestStatus.COMPLETE;
+	}
+	
 	public static SAGRequest from(User user, Ride ride, Coordinates latLong) {
 		SAGRequestId id = new SAGRequestId();
 		id.setCyclist(user);
 		id.setRide(ride);
 		
 		SAGRequest request = new SAGRequest();
-		request.setStatus(SAGRequestStatus.ACTIVE);
+		request.setStatus(SAGRequestStatus.NEW);
 		request.setId(id);
 		request.setRequestedAt(ZonedDateTime.now(ride.getEventTimeZone()));
 		request.setLastKnowLocation(latLong);

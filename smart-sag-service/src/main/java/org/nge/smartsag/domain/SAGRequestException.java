@@ -20,5 +20,4 @@ public class SAGRequestException extends SmartException {
 	}
 
 	private static final long serialVersionUID = 1L;
-
 }

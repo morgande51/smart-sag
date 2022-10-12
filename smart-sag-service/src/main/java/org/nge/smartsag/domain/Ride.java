@@ -1,6 +1,7 @@
 package org.nge.smartsag.domain;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collections;
@@ -35,6 +36,17 @@ public class Ride implements Serializable {
 	
 	private Set<SAGRequest> sosRequests;
 	
+	public void endNow() {
+		if (isActive()) {
+			endAt = Instant.now().atZone(getEventTimeZone());
+		}
+	}
+	
+	public boolean isActive() {
+		Instant now = Instant.now();
+		return now.isAfter(startAt.toInstant()) && now.isBefore(endAt.toInstant());
+	}
+	
 	public ZoneId getEventTimeZone() {
 		return startAt.getZone();
 	}
@@ -42,23 +54,23 @@ public class Ride implements Serializable {
 	public boolean hasActiveSAGRequest() {
 		boolean activeRequest = false;
 		if (sosRequests != null && !sosRequests.isEmpty()) {
-			activeRequest = sosRequests.stream().anyMatch(r -> r.getStatus() == SAGRequestStatus.ACTIVE);
+			activeRequest = sosRequests.stream().anyMatch(SAGRequest::isActive);
 		}
 		return activeRequest;
 	}
 	
-	public Set<SAGRequest> getActiveSOS() {
+	public Set<SAGRequest> getActiveSAGRequest() {
 		Set<SAGRequest> activeRequest = Collections.emptySet();
 		if (sosRequests != null) {
 			activeRequest = sosRequests.stream()
-				.filter(r -> r.getStatus() == SAGRequestStatus.ACTIVE)
+				.filter(SAGRequest::isActive)
 				.sorted(Comparator.comparing(SAGRequest::getRequestedAt))
 				.collect(Collectors.toSet());
 		}
 		return activeRequest;
 	}
 	
-	public SAGRequest requestSOS(User cyclist, Coordinates latLong) {
+	public SAGRequest requestSAG(User cyclist, Coordinates latLong) {
 		if (sosRequests == null) {
 			sosRequests = new HashSet<>();
 		}
@@ -73,7 +85,7 @@ public class Ride implements Serializable {
 		return sos;	
 	}
 	
-	public SAGRequest cancelSOS(String referenceId, User cyclist, Optional<User> admin) {
+	public SAGRequest cancelSAGRequest(String referenceId, User cyclist, Optional<User> admin) {
 		SAGRequest request = findSOS(referenceId);
 		if (!User.isUserIn(hosts.stream(), admin) && !request.getCyclist().getId().equals(cyclist.getId())) {
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
@@ -82,7 +94,7 @@ public class Ride implements Serializable {
 		return request;
 	}
 	
-	public SAGRequest completeSOS(String referenceId, User sag, Optional<User> admin) {
+	public SAGRequest completeSAGRequest(String referenceId, User sag, Optional<User> admin) {
 		SAGRequest request = findSOS(referenceId);
 		if (!User.isUserIn(hosts.stream(), admin) && !User.isUserIn(sagSupporters.stream(), Optional.of(sag))) {
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
@@ -91,11 +103,43 @@ public class Ride implements Serializable {
 		return request;
 	}
 	
+	public void addHost(User admin, User user) {
+		verifyHost(admin);
+		hosts.add(user);
+	}
+	
+	public void removeHost(User admin, User user) {
+		verifyHost(admin);
+		if (hosts.stream().count() == 1) {
+			// TODO: must be one host present
+		}
+		hosts.remove(user);
+	}
+	
+	public void addSAG(User admin, User sag) {
+		verifyHost(admin);
+		if (sagSupporters == null) {
+			sagSupporters = new HashSet<>();
+		}
+		sagSupporters.add(sag);
+	}
+	
+	public void removeSAG(User admin, User sag) {
+		verifyHost(admin);
+		sagSupporters.remove(sag);
+	}
+	
 	protected SAGRequest findSOS(String referenceId) {
 		return sosRequests.stream()
 				.filter(r -> r.getReferenceId().equals(referenceId))
 				.findAny()
 				.orElseThrow(() -> new SAGRequestException(referenceId, Reason.UNKNOWN_REF_ID));
+	}
+	
+	protected void verifyHost(User admin) {
+		if (!User.isUserIn(hosts.stream(), Optional.of(admin))) {
+			throw new InvalidAdminException(admin);
+		}
 	}
 	
 	public static Ride createRide(User admin, String name, ZonedDateTime startAt, ZonedDateTime endAt, Address location) {

@@ -2,6 +2,7 @@ package org.nge.smartsag.domain;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +49,14 @@ public class Organization implements Serializable {
 		}
 		rides.remove(ride);
 		return ride;
+	}
+	
+	public static Organization createOrg(String name, User user) {
+		Organization org = new Organization();
+		org.setName(name);
+		org.setPrimaryContact(user);
+		org.setAdmins(Collections.singleton(user));
+		return org;
 	}
 
 	private static final long serialVersionUID = 1L;

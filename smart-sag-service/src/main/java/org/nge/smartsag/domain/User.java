@@ -1,6 +1,7 @@
 package org.nge.smartsag.domain;
 
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -21,6 +22,15 @@ public class User implements Serializable {
 	private String phone;
 	
 	private Set<Organization> organizations;
+	
+	public Organization createOrg(String name) {
+		if (organizations == null) {
+			organizations = new HashSet<>();
+		}
+		Organization org = Organization.createOrg(name, this);
+		organizations.add(org);
+		return org;
+	}
 	
 	public static boolean isUserIn(Stream<User> users, Optional<User> targetUser) {
 		return targetUser.isPresent() && users.anyMatch(u -> u.getId().equals(targetUser.get().getId()));
