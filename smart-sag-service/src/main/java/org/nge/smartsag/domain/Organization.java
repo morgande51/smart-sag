@@ -7,19 +7,42 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.SequenceGenerator;
+import javax.persistence.Table;
+
 import lombok.Data;
 
+@Entity
+@Table(name = "org")
 @Data
 public class Organization implements Serializable {
 	
+	@Id
+	@SequenceGenerator(name = "orgSeq", sequenceName = "user_org_seq", allocationSize = 1, initialValue = 1000)
 	private Long id;
 	
+	@Column(nullable = false)
 	private String name;
 	
+	@ManyToOne
+	@JoinColumn(name = "contact_user", nullable = false)
 	private User primaryContact;
 	
+	@OneToMany
+	@JoinTable(name = "org_admin",
+	           joinColumns = @JoinColumn(name = "user_org_id", referencedColumnName = "id"),
+			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
 	private Set<User> admins;
 	
+	@OneToMany(mappedBy = "hostedBy", orphanRemoval = true, cascade = CascadeType.ALL)
 	private Set<Ride> rides;
 	
 	public Ride createRide(String name, User admin, ZonedDateTime startAt, ZonedDateTime endAt, Address location) {

@@ -1,6 +1,5 @@
 package org.nge.smartsag.domain;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -11,29 +10,58 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Embedded;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.SequenceGenerator;
+
 import org.nge.smartsag.domain.SAGRequestException.Reason;
 
 import lombok.Data;
 
+@Entity
 @Data
-public class Ride implements Serializable {
+public class Ride {
 	
+	@Id
+	@SequenceGenerator(name = "rideSeq", sequenceName = "ride_seq", allocationSize = 1, initialValue = 1000)
 	private Long id;
 	
+	@Column(nullable = false)
 	private String name;
 	
-	private Organization hostedBy;
-	
-	private Set<User> hosts;
-	
-	private Set<User> sagSupporters;
-	
+	@Column(name = "start_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
 	private ZonedDateTime startAt;
 	
+	@Column(name = "end_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
 	private ZonedDateTime endAt;
 	
+	@Embedded
 	private Address location;
 	
+	@ManyToOne
+	@JoinColumn(name = "hosting_org", nullable = false)
+	private Organization hostedBy;
+	
+	@OneToMany
+	@JoinTable(name = "ride_host",
+	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
+			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
+	private Set<User> hosts;
+	
+	@OneToMany
+	@JoinTable(name = "ride_sag",
+	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
+			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
+	private Set<User> sagSupporters;
+	
+	@OneToMany(mappedBy = "ride", orphanRemoval = true, cascade = CascadeType.ALL)
 	private Set<SAGRequest> sosRequests;
 	
 	public void endNow() {
@@ -151,6 +179,4 @@ public class Ride implements Serializable {
 		ride.setLocation(location);
 		return ride;
 	}
-
-	private static final long serialVersionUID = 1L;
 }
