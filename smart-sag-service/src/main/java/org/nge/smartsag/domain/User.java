@@ -5,23 +5,40 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import javax.json.bind.annotation.JsonbTransient;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.ManyToMany;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Table(name = "sag_user")
 @Data
+@EqualsAndHashCode(exclude = {"primaryOrgs","adminOrgs"})
+@ToString(exclude = {"primaryOrgs", "adminOrgs"})
+@NamedQueries({
+	@NamedQuery(name = "User.getWithOrgs", query = "select user from User user join fetch user.primaryOrgs where user.id = ?1"),
+	@NamedQuery(name = "User.findByPhone", query = "select user from User user where user.phone = ?1"),
+	@NamedQuery(name = "User.findByEmail", query = "select user from User user where user.email like ?1"),
+	@NamedQuery(name = "User.findAdminByOrgId", query = "select user from User user join user.adminOrgs org where org.id = :orgId")
+})
 public class User {
-	
+
 	@Id
 	@SequenceGenerator(name = "userSeq", sequenceName = "sag_user_seq", allocationSize = 1, initialValue = 1000)
+	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "userSeq")
 	private Long id;
 	
 	@Column(name = "first_name", nullable = false)
@@ -37,18 +54,66 @@ public class User {
 	private String phone;
 	
 	@OneToMany(mappedBy = "primaryContact", orphanRemoval = true, cascade = CascadeType.ALL)
-	private Set<Organization> organizations;
+	@JsonbTransient
+	private Set<Organization> primaryOrgs;
+	
+	@ManyToMany(mappedBy = "admins")
+	@JsonbTransient
+	private Set<Organization> adminOrgs;
 	
 	public Organization createOrg(String name) {
-		if (organizations == null) {
-			organizations = new HashSet<>();
-		}
 		Organization org = Organization.createOrg(name, this);
-		organizations.add(org);
+		if (primaryOrgs == null) {
+			primaryOrgs = new HashSet<>();
+			System.out.print("yep, creating new instance");
+		}
+		else {
+			checkName(name);
+		}
+		primaryOrgs.add(org);
 		return org;
+	}
+	
+	public void removeOrg(Long id) {
+		Organization org = getOrg(id);
+		if (!org.canRemove()) {
+			// TODO: fix me
+			throw new RuntimeException("Oranization: " + id + " cannot be deleted");
+		}
+	}
+	
+	public Organization updateOrg(Long id, String name) {
+		Organization org = getOrg(id);
+		checkName(name);
+		org.setName(name);
+		return org;
+	}
+	
+	protected Organization getOrg(Long id) {
+		return primaryOrgs.stream()
+				.filter(o -> o.getId().equals(id))
+				.findAny()
+				.orElseThrow(UnknownDomainException::new);
+	}
+	
+	protected void checkName(String name) {
+		primaryOrgs.stream()
+			.filter(o -> o.getName().equalsIgnoreCase(name))
+			.findAny()
+			.ifPresent(o -> {
+				throw new UniqueNameException(name);
+			});
 	}
 	
 	public static boolean isUserIn(Stream<User> users, Optional<User> targetUser) {
 		return targetUser.isPresent() && users.anyMatch(u -> u.getId().equals(targetUser.get().getId()));
 	}
+	
+	public static final String GET_WITH_ORGS = "#User.getWithOrgs";
+
+	public static final String FIND_BY_PHONE = "#User.findByPhone";
+
+	public static final String FIND_BY_EMAIL = "#User.findByEmail";
+
+	public static final String FIND_ADMIN_BY_ORG_ID = "#User.findAdminByOrgId";
 }

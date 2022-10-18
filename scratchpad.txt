@@ -1,0 +1,6 @@
+UI Screen should have 3 different flows:
+	1. request SAG support
+	2. support a ride
+	3. register a new ride
+	
+define a pop-up ride at the domain level.
