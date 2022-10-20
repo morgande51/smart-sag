@@ -11,16 +11,23 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Table(name = "sag_request")
 @Data
-public class SAGRequest {
-	
+@EqualsAndHashCode(exclude = {"cyclist","ride"})
+@ToString(exclude = {"cyclist","ride"})
+@NamedQueries(@NamedQuery(name = "SAGRequest.findReqForUser", query = "select req from SAGRequest req join req.cyclist c where c.id = ?1"))
+public class SAGRequest implements IdentifiableDomain<Long> {
+
 	@Id
 	@SequenceGenerator(name = "sagReqSeq", sequenceName = "sag_req_seq", allocationSize = 1, initialValue = 1000)
 	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sagReqSeq")
@@ -32,9 +39,10 @@ public class SAGRequest {
 	@Column(name = "requested", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
 	private ZonedDateTime requestedAt;
 	
-	@Column(name = "completed", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+	@Column(name = "completed", columnDefinition = "TIMESTAMP WITH TIME ZONE")
 	private ZonedDateTime completedAt;
 	
+	@Column(name = "status", nullable = false)
 	private SAGRequestStatus status;
 	
 	@Embedded
@@ -65,4 +73,6 @@ public class SAGRequest {
 		request.setReferenceId(UUID.randomUUID().toString());
 		return request;
 	}
+	
+	public static final String FIND_REQ_FOR_USER = "#SAGRequest.findReqForUser";
 }

@@ -28,4 +28,9 @@ public class UserDaoImpl implements UserDao, PanacheRepository<User> {
 	public List<User> findAdminByOrgId(Long orgId) {
 		return list(User.FIND_ADMIN_BY_ORG_ID, Parameters.with("orgId", orgId));
 	}
+	
+	@Override
+	public User getUser(Long id) {
+		return findById(id);
+	}
 }

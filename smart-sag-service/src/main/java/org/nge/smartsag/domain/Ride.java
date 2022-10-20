@@ -22,6 +22,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 
@@ -33,9 +35,13 @@ import lombok.ToString;
 
 @Entity
 @Data
-@EqualsAndHashCode(exclude = {"hosts","hostedBy","sagSupporters","sosRequests"})
-@ToString(exclude = {"hosts","hostedBy","sagSupporters","sosRequests"})
-public class Ride {
+@EqualsAndHashCode(exclude = {"hosts","hostedBy","sagSupporters","sagRequests"})
+@ToString(exclude = {"hosts","hostedBy","sagSupporters","sagRequests"})
+@NamedQueries({
+	@NamedQuery(name = "Ride.getWithHostAndSAG", query = "select ride from Ride ride left join fetch ride.hosts left join fetch ride.sagSupporters left join fetch ride.sagRequests where ride.id = ?1"),
+	@NamedQuery(name = "Rride.findForSAGSupport", query = "select ride from Ride ride join ride.sagSupporters s where s.id = ?1")
+})
+public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport {
 	
 	@Id
 	@SequenceGenerator(name = "rideSeq", sequenceName = "ride_seq", allocationSize = 1, initialValue = 1000)
@@ -58,14 +64,14 @@ public class Ride {
 	@JoinColumn(name = "hosting_org", nullable = false)
 	private Organization hostedBy;
 	
-	@ManyToMany
+	@ManyToMany(cascade = CascadeType.ALL)
 	@JoinTable(name = "ride_host",
 	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
 			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
 	@JsonbTransient
 	private Set<User> hosts;
 	
-	@ManyToMany
+	@ManyToMany(cascade = CascadeType.ALL)
 	@JoinTable(name = "ride_sag",
 	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
 			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
@@ -74,7 +80,7 @@ public class Ride {
 	
 	@OneToMany(mappedBy = "ride", orphanRemoval = true, cascade = CascadeType.ALL)
 	@JsonbTransient
-	private Set<SAGRequest> sosRequests;
+	private Set<SAGRequest> sagRequests;
 	
 	public void endNow() {
 		if (isActive()) {
@@ -97,16 +103,39 @@ public class Ride {
 	
 	public boolean hasActiveSAGRequest() {
 		boolean activeRequest = false;
-		if (sosRequests != null && !sosRequests.isEmpty()) {
-			activeRequest = sosRequests.stream().anyMatch(SAGRequest::isActive);
+		if (sagRequests != null && !sagRequests.isEmpty()) {
+			activeRequest = sagRequests.stream().anyMatch(SAGRequest::isActive);
 		}
 		return activeRequest;
 	}
 	
+	public boolean hasActiveSAGRequest(User user) {
+		boolean hasSagRequest = false;
+		if (sagRequests != null && !sagRequests.isEmpty()) {
+			hasSagRequest = sagRequests.stream()
+					.filter(SAGRequest::isActive)
+					.map(SAGRequest::getCyclist)
+					.anyMatch(c -> c.equals(user));
+		}
+		return hasSagRequest;
+	}
+	
+	public Optional<SAGRequest> getActiveSAGRequest(User user) {
+		SAGRequest request = null;
+		if (sagRequests != null && !sagRequests.isEmpty()) {
+			request = sagRequests.stream()
+					.filter(SAGRequest::isActive)
+					.filter(r -> r.getCyclist().equals(user))
+					.findAny()
+					.orElse(null);
+		}
+		return Optional.ofNullable(request);
+	}
+	
 	public Set<SAGRequest> getActiveSAGRequest() {
 		Set<SAGRequest> activeRequest = Collections.emptySet();
-		if (sosRequests != null) {
-			activeRequest = sosRequests.stream()
+		if (sagRequests != null) {
+			activeRequest = sagRequests.stream()
 				.filter(SAGRequest::isActive)
 				.sorted(Comparator.comparing(SAGRequest::getRequestedAt))
 				.collect(Collectors.toSet());
@@ -115,32 +144,47 @@ public class Ride {
 	}
 	
 	public SAGRequest requestSAG(User cyclist, Coordinates latLong) {
-		if (sosRequests == null) {
-			sosRequests = new HashSet<>();
+		if (!isActive()) {
+			// TODO: handle this
+			throw new RuntimeException("Ride is not active");
 		}
-		SAGRequest sos = sosRequests.stream()
-				.filter(r -> r.getCyclist().getId().equals(cyclist.getId())).findAny()
-				.orElseGet(() -> {
-					SAGRequest req = SAGRequest.from(cyclist, this, latLong);
-					sosRequests.add(req);
-					return req;
-				});
 		
-		return sos;	
+		SAGRequest req;
+		if (sagRequests == null) {
+			sagRequests = new HashSet<>();
+			req = SAGRequest.from(cyclist, this, latLong);
+			sagRequests.add(req);
+		}
+		else if (hasActiveSAGRequest(cyclist)) {
+			// TODO real exception
+			throw new RuntimeException("Cyclist cannot have more than one open SAG request");
+		}
+		else {
+			req = SAGRequest.from(cyclist, this, latLong);
+			sagRequests.add(req);
+		}
+		
+		return req;	
 	}
 	
-	public SAGRequest cancelSAGRequest(String referenceId, User cyclist, Optional<User> admin) {
-		SAGRequest request = findSOS(referenceId);
-		if (!User.isUserIn(hosts.stream(), admin) && !request.getCyclist().getId().equals(cyclist.getId())) {
+	public SAGRequest cancelSAGRequest(String referenceId, User user) {
+		SAGRequest request = findSAG(referenceId);
+		if (!request.getCyclist().getId().equals(user.getId()) && 
+			!isUserIn(hosts, user) && 
+			!isUserIn(hostedBy.getAdmins(), user))
+		{
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
 		}
 		request.close(SAGRequestStatus.CANCELED);
 		return request;
 	}
 	
-	public SAGRequest completeSAGRequest(String referenceId, User sag, Optional<User> admin) {
-		SAGRequest request = findSOS(referenceId);
-		if (!User.isUserIn(hosts.stream(), admin) && !User.isUserIn(sagSupporters.stream(), Optional.of(sag))) {
+	public SAGRequest completeSAGRequest(String referenceId, User user) {
+		SAGRequest request = findSAG(referenceId);
+		if (!isUserIn(sagSupporters, user) && 
+			!isUserIn(hosts, user) && 
+			!isUserIn(hostedBy.getAdmins(), user))
+		{
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
 		}
 		request.close(SAGRequestStatus.COMPLETE);
@@ -148,20 +192,21 @@ public class Ride {
 	}
 	
 	public void addHost(User admin, User user) {
-		verifyHost(admin);
+		verifyUserIn(hostedBy.getAdmins(), admin);
 		hosts.add(user);
 	}
 	
 	public void removeHost(User admin, User user) {
-		verifyHost(admin);
+		verifyUserIn(hostedBy.getAdmins(), admin);
 		if (hosts.stream().count() == 1) {
 			// TODO: must be one host present
+			throw new RuntimeException();
 		}
 		hosts.remove(user);
 	}
 	
 	public void addSAG(User admin, User sag) {
-		verifyHost(admin);
+		verifyUserIn(hostedBy.getAdmins(), admin);
 		if (sagSupporters == null) {
 			sagSupporters = new HashSet<>();
 		}
@@ -169,21 +214,25 @@ public class Ride {
 	}
 	
 	public void removeSAG(User admin, User sag) {
-		verifyHost(admin);
+		verifyUserIn(hostedBy.getAdmins(), admin);
 		sagSupporters.remove(sag);
 	}
 	
-	protected SAGRequest findSOS(String referenceId) {
-		return sosRequests.stream()
+	public void verifyAccess(User user) {
+		if (!hasActiveSAGRequest(user) && 
+			!isUserIn(hosts, user) && 
+			!isUserIn(sagSupporters, user) &&
+			!isUserIn(hostedBy.getAdmins(), user)) 
+		{
+			throw new InvalidAdminException(user);
+		}
+	}
+	
+	protected SAGRequest findSAG(String referenceId) {
+		return sagRequests.stream()
 				.filter(r -> r.getReferenceId().equals(referenceId))
 				.findAny()
 				.orElseThrow(() -> new SAGRequestException(referenceId, Reason.UNKNOWN_REF_ID));
-	}
-	
-	protected void verifyHost(User admin) {
-		if (!User.isUserIn(hosts.stream(), Optional.of(admin))) {
-			throw new InvalidAdminException(admin);
-		}
 	}
 	
 	public static Ride createRide(User admin, String name, ZonedDateTime startAt, ZonedDateTime endAt, Address location) {
@@ -195,4 +244,8 @@ public class Ride {
 		ride.setLocation(location);
 		return ride;
 	}
+	
+	public static final String GET_WITH_HOST_AND_SAG = "#Ride.getWithHostAndSAG";
+
+	public static final String FIND_FOR_SAG_SUPPORT = "#Rride.findForSAGSupport";
 }

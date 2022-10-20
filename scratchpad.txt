@@ -3,4 +3,8 @@ UI Screen should have 3 different flows:
 	2. support a ride
 	3. register a new ride
 	
-define a pop-up ride at the domain level.
+define a pop-up ride at the domain level = DONE!
+
+Setup Keycloak
+
+Get Lat/Long for a given Ride Location

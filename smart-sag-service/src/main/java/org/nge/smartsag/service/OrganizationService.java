@@ -1,12 +1,13 @@
 package org.nge.smartsag.service;
 
-import java.util.List;
+import java.util.Set;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.transaction.Transactional;
 import javax.transaction.Transactional.TxType;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
@@ -17,6 +18,7 @@ import org.jboss.logging.Logger;
 import org.nge.smartsag.dao.OrganizationDao;
 import org.nge.smartsag.dao.UserDao;
 import org.nge.smartsag.domain.Organization;
+import org.nge.smartsag.domain.Ride;
 import org.nge.smartsag.domain.User;
 
 import lombok.Getter;
@@ -33,6 +35,14 @@ public class OrganizationService implements ContextedUserSupport {
 	@Inject
 	@Getter
 	UserDao userDao;
+	
+	@POST
+	@Transactional(TxType.REQUIRED)
+	public Organization createOrg(@QueryParam("name") String name) {
+		log.debugf("target name: %s", name);
+		User user = getAuthenticatedUser();
+		return user.createOrg(name);
+	}
 	
 	@Path("/{id}")
 	@GET
@@ -61,15 +71,16 @@ public class OrganizationService implements ContextedUserSupport {
 	
 	@Path("/{id}/admins")
 	@GET
-	public List<User> getOrgAdmins(Long id) {
-		return userDao.findAdminByOrgId(id);
+	public ChildrenReference<Long, User> getOrgAdmins(Long id) {
+		return new ChildrenReference<>( userDao.findAdminByOrgId(id), "users");
 	}
 	
-	@POST
-	@Transactional(TxType.REQUIRED)
-	public Organization createOrg(@QueryParam("name") String name) {
-		log.debugf("target name: %s", name);
-		User user = getAuthenticatedUser();
-		return user.createOrg(name);
+	@Path("/{id}/rides")
+	@GET
+	public ChildrenReference<Long, Ride> getOrgRides(Long id, @QueryParam("active") @DefaultValue("true") boolean active) {
+		log.debugf("Active rides: %s", active);
+		Organization org = orgDao.get(id);
+		Set<Ride> rides = active ? org.getActiveRides() : org.getRides();
+		return new ChildrenReference<>(rides, "rides");
 	}
 }

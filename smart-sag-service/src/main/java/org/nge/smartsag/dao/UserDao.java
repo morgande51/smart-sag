@@ -11,4 +11,6 @@ public interface UserDao {
 	User findByPhone(String phone);
 
 	List<User> findAdminByOrgId(Long orgId);
+
+	User getUser(Long id);
 }

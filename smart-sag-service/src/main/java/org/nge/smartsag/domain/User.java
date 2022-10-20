@@ -1,9 +1,7 @@
 package org.nge.smartsag.domain;
 
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import javax.json.bind.annotation.JsonbTransient;
 import javax.persistence.CascadeType;
@@ -34,7 +32,7 @@ import lombok.ToString;
 	@NamedQuery(name = "User.findByEmail", query = "select user from User user where user.email like ?1"),
 	@NamedQuery(name = "User.findAdminByOrgId", query = "select user from User user join user.adminOrgs org where org.id = :orgId")
 })
-public class User {
+public class User implements IdentifiableDomain<Long> {
 
 	@Id
 	@SequenceGenerator(name = "userSeq", sequenceName = "sag_user_seq", allocationSize = 1, initialValue = 1000)
@@ -80,6 +78,8 @@ public class User {
 			// TODO: fix me
 			throw new RuntimeException("Oranization: " + id + " cannot be deleted");
 		}
+		primaryOrgs.remove(org);
+		org.getAdmins().clear();
 	}
 	
 	public Organization updateOrg(Long id, String name) {
@@ -105,8 +105,15 @@ public class User {
 			});
 	}
 	
-	public static boolean isUserIn(Stream<User> users, Optional<User> targetUser) {
-		return targetUser.isPresent() && users.anyMatch(u -> u.getId().equals(targetUser.get().getId()));
+	public Organization getAdminOrg(Long id) {
+		return adminOrgs.stream()
+				.filter(o -> o.getId().equals(id))
+				.findAny()
+				.orElseThrow(() -> new InvalidAdminException(this));
+	}
+	
+	public Organization getPopUpOrg() {
+		return primaryOrgs.stream().filter(Organization::isPopup).findAny().get();
 	}
 	
 	public static final String GET_WITH_ORGS = "#User.getWithOrgs";

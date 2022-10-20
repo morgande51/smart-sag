@@ -11,6 +11,7 @@ public interface ContextedUserSupport {
 		return getUserDao().findByEmail(getAuthSubjectEmail());
 	}
 	
+	// TODO: get this from IAM
 	default String getAuthSubjectEmail() {
 		return "test@test.com";
 	}

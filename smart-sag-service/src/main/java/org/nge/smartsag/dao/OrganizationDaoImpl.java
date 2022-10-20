@@ -17,7 +17,7 @@ public class OrganizationDaoImpl implements OrganizationDao, PanacheRepository<O
 	}
 	
 	@Override
-	public List<Organization> findOrgsByAdminEmail(String email) {
-		return list(Organization.FIND_BY_ADMIN, email);
+	public List<Organization> findOrgsByUserId(Long userId) {
+		return list(Organization.FIND_BY_ADMIN, userId);
 	}
 }

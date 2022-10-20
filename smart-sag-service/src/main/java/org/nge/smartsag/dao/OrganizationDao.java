@@ -8,5 +8,5 @@ public interface OrganizationDao {
 
 	Organization get(Long orgId);
 
-	List<Organization> findOrgsByAdminEmail(String email);
+	List<Organization> findOrgsByUserId(Long userId);
 }
