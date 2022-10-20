@@ -1,4 +1,4 @@
-package org.nge.smartsag.service;
+package org.nge.smartsag.service.conf;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

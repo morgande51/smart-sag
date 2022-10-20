@@ -1,4 +1,4 @@
-package org.nge.smartsag.service;
+package org.nge.smartsag.service.conf;
 
 import javax.inject.Singleton;
 import javax.json.bind.JsonbConfig;
