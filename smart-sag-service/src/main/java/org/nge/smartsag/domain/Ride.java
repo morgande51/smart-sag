@@ -72,7 +72,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	private Set<User> hosts;
 	
 	@ManyToMany(cascade = CascadeType.ALL)
-	@JoinTable(name = "ride_sag",
+	@JoinTable(name = "ride_support",
 	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
 			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
 	@JsonbTransient
@@ -235,13 +235,14 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 				.orElseThrow(() -> new SAGRequestException(referenceId, Reason.UNKNOWN_REF_ID));
 	}
 	
-	public static Ride createRide(User admin, String name, ZonedDateTime startAt, ZonedDateTime endAt, Address location) {
+	public static Ride createRide(User admin, Organization hostOrg, String name, ZonedDateTime startAt, ZonedDateTime endAt, Address location) {
 		Ride ride = new Ride();
 		ride.setName(name);
 		ride.setStartAt(startAt);
 		ride.setEndAt(endAt);
-		ride.setHosts(Collections.singleton(admin));
 		ride.setLocation(location);
+		ride.setHosts(Collections.singleton(admin));
+		ride.setHostedBy(hostOrg);
 		return ride;
 	}
 	

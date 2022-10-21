@@ -61,12 +61,22 @@ public class Organization implements IdentifiableDomain<Long>, UserVerificationS
 	@JsonbTransient
 	private Set<Ride> rides;
 	
+	public void addAdmin(User orgAdmin, User target) {
+		verifyUserIn(admins, orgAdmin);
+		admins.add(target);
+	}
+	
+	public boolean removeAdmin(User orgAdmin, String targetEmail) {
+		verifyUserIn(admins, orgAdmin);
+		return admins.removeIf(u -> u.getEmail().equalsIgnoreCase(targetEmail));
+	}
+	
 	public Ride createRide(String name, User admin, ZonedDateTime startAt, ZonedDateTime endAt, Address location) {
 		verifyUserIn(admins, admin);
 		if (rides == null) {
 			rides = new HashSet<>();
 		}
-		Ride ride = Ride.createRide(admin, name, startAt, endAt, location);
+		Ride ride = Ride.createRide(admin, this, name, startAt, endAt, location);
 		rides.add(ride);
 		return ride;
 	}

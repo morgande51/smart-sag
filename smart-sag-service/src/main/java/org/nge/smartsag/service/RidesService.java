@@ -11,6 +11,8 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
+import org.jboss.logging.Logger;
+import org.nge.smartsag.aws.LocationSearchService;
 import org.nge.smartsag.dao.RideDao;
 import org.nge.smartsag.dao.UserDao;
 import org.nge.smartsag.domain.Address;
@@ -26,6 +28,8 @@ import lombok.Getter;
 @ApplicationScoped
 public class RidesService implements ContextedUserSupport {
 	
+	private static final Logger log = Logger.getLogger(RidesService.class);
+			
 	@Inject
 	@Getter
 	UserDao userDao;
@@ -33,18 +37,22 @@ public class RidesService implements ContextedUserSupport {
 	@Inject
 	RideDao rideDao;
 	
+	@Inject
+	LocationSearchService locationService;
+	
 	@POST
 	@Transactional
 	public Ride addRide(CreateRideRequest request) {
+		log.debugf("Ride request: %s", request);
 		User user = getAuthenticatedUser();
 		Organization org = request.isPopUpRide() ? user.getPopUpOrg() : user.getAdminOrg(request.getHostOrg());
-		
+		Address geocodedAddress = locationService.getAddressFor(request.getRideLocation());
 		Ride ride = org.createRide(
 				request.getName(), 
 				user, 
 				request.getStartAt(), 
 				request.getEndAt(), 
-				getAddressFor(request.getRideLocation()));
+				geocodedAddress);
 		return ride;
 	}
 	
@@ -62,7 +70,7 @@ public class RidesService implements ContextedUserSupport {
 	
 	@Path("/{id}/hosts")
 	@GET
-	public ChildrenReference<Long, User> getRideHosts(Long id) {
+	public ChildrenReference<Long, User> getHosts(Long id) {
 		Ride ride = getRide(id);
 		return new ChildrenReference<>(ride.getHosts(), "users");
 	}
@@ -70,7 +78,7 @@ public class RidesService implements ContextedUserSupport {
 	@Path("/{id}/hosts")
 	@POST
 	@Transactional
-	public ChildrenReference<Long, User> getRideHosts(Long id, @QueryParam("email") String email) {
+	public ChildrenReference<Long, User> addHost(Long id, @QueryParam("email") String email) {
 		Ride ride = getRide(id);
 		User host = userDao.findByEmail(email);
 		User admin = getAuthenticatedUser();
@@ -80,7 +88,7 @@ public class RidesService implements ContextedUserSupport {
 	
 	@Path("/{id}/support")
 	@GET
-	public ChildrenReference<Long, User> getRideSAGSupport(Long id) {
+	public ChildrenReference<Long, User> getSupport(Long id) {
 		Ride ride = getRide(id);
 		return new ChildrenReference<>(ride.getSagSupporters(), "users");
 	}
@@ -88,7 +96,7 @@ public class RidesService implements ContextedUserSupport {
 	@Path("/{id}/support")
 	@POST
 	@Transactional
-	public ChildrenReference<Long, User> getRideSAGSupport(Long id, @QueryParam("email") String email) {
+	public ChildrenReference<Long, User> addSupport(Long id, @QueryParam("email") String email) {
 		Ride ride = getRide(id);
 		User sag = userDao.findByEmail(email);
 		User admin = getAuthenticatedUser();
@@ -96,15 +104,11 @@ public class RidesService implements ContextedUserSupport {
 		return new ChildrenReference<>(ride.getSagSupporters(), "users");
 	}
 	
-	@Path("/{id}/sags")
+	@Path("/{id}/sagRequests")
 	@GET
-	public ChildrenReference<Long, SAGRequest> getRideSAGRequest(Long id, @QueryParam("active") @DefaultValue("true") boolean active) {
+	public ChildrenReference<Long, SAGRequest> getSAGRequest(Long id, @QueryParam("active") @DefaultValue("true") boolean active) {
 		Ride ride = getRide(id);
 		Set<SAGRequest> sagRequest = active ? ride.getActiveSAGRequest() : ride.getSagRequests();
 		return new ChildrenReference<>(sagRequest, "sag");
-	}
-	
-	protected Address getAddressFor(String location) {
-		return null;
 	}
 }

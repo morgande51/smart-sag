@@ -72,8 +72,8 @@ public class User implements IdentifiableDomain<Long> {
 		return org;
 	}
 	
-	public void removeOrg(Long id) {
-		Organization org = getOrg(id);
+	public void removePrimayOrg(Long id) {
+		Organization org = getPrimaryOrg(id);
 		if (!org.canRemove()) {
 			// TODO: fix me
 			throw new RuntimeException("Oranization: " + id + " cannot be deleted");
@@ -82,14 +82,14 @@ public class User implements IdentifiableDomain<Long> {
 		org.getAdmins().clear();
 	}
 	
-	public Organization updateOrg(Long id, String name) {
-		Organization org = getOrg(id);
+	public Organization updatePrimayOrg(Long orgId, String name) {
+		Organization org = getPrimaryOrg(orgId);
 		checkName(name);
 		org.setName(name);
 		return org;
 	}
 	
-	protected Organization getOrg(Long id) {
+	protected Organization getPrimaryOrg(Long id) {
 		return primaryOrgs.stream()
 				.filter(o -> o.getId().equals(id))
 				.findAny()
