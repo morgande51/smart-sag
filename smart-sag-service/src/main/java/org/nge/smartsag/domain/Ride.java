@@ -175,7 +175,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		{
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
 		}
-		request.close(SAGRequestStatus.CANCELED);
+		request.close(SAGRequestStatusType.CANCELED);
 		return request;
 	}
 	
@@ -187,7 +187,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		{
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
 		}
-		request.close(SAGRequestStatus.COMPLETE);
+		request.close(SAGRequestStatusType.COMPLETE);
 		return request;
 	}
 	

@@ -20,7 +20,7 @@ public class Address {
 	private String city;
 	
 	@Column(nullable = false)
-	private String state;
+	private StateType state;
 	
 	@Column(nullable = false)
 	private String zip;
@@ -41,7 +41,7 @@ public class Address {
 		addy.city = city;
 		addy.streetName = name;
 		addy.streetNumber = number;
-		addy.state = state;
+		addy.state = StateType.fromFullName(state);
 		addy.zip = zip;
 		addy.coordinates = Coordinates.from(x, y);
 		return addy;
