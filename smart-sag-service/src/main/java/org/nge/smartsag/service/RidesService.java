@@ -2,6 +2,7 @@ package org.nge.smartsag.service;
 
 import java.util.Set;
 
+import javax.annotation.security.RolesAllowed;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.transaction.Transactional;
@@ -12,9 +13,9 @@ import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
 import org.jboss.logging.Logger;
+import org.jboss.resteasy.reactive.NoCache;
 import org.nge.smartsag.aws.LocationSearchService;
 import org.nge.smartsag.dao.RideDao;
-import org.nge.smartsag.dao.UserDao;
 import org.nge.smartsag.domain.Address;
 import org.nge.smartsag.domain.Organization;
 import org.nge.smartsag.domain.Ride;
@@ -22,23 +23,29 @@ import org.nge.smartsag.domain.SAGRequest;
 import org.nge.smartsag.domain.UnknownDomainException;
 import org.nge.smartsag.domain.User;
 
-import lombok.Getter;
-
 @Path("/rides")
+@RolesAllowed("users")
+@NoCache
 @ApplicationScoped
-public class RidesService implements ContextedUserSupport {
+public class RidesService extends ContextedUserSupport {
 	
 	private static final Logger log = Logger.getLogger(RidesService.class);
-			
-	@Inject
-	@Getter
-	UserDao userDao;
 	
 	@Inject
 	RideDao rideDao;
 	
 	@Inject
 	LocationSearchService locationService;
+	
+	@Path("/search")
+	@GET
+	public Ride search(@QueryParam("refId") String refId) {
+		Ride ride = rideDao.getRideFromRefId(refId);
+		if (ride == null) {
+			throw new UnknownDomainException(Ride.class);
+		}
+		return ride;
+	}
 	
 	@POST
 	@Transactional
@@ -62,7 +69,7 @@ public class RidesService implements ContextedUserSupport {
 		User user = getAuthenticatedUser();
 		Ride ride = rideDao.getRide(id);
 		if (ride == null) {
-			throw new UnknownDomainException();
+			throw new UnknownDomainException(Ride.class);
 		}
 		ride.verifyAccess(user);
 		return ride;

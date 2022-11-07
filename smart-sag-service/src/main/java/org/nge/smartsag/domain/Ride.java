@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.json.bind.annotation.JsonbTransient;
@@ -38,8 +39,9 @@ import lombok.ToString;
 @EqualsAndHashCode(exclude = {"hosts","hostedBy","sagSupporters","sagRequests"})
 @ToString(exclude = {"hosts","hostedBy","sagSupporters","sagRequests"})
 @NamedQueries({
-	@NamedQuery(name = "Ride.getWithHostAndSAG", query = "select ride from Ride ride left join fetch ride.hosts left join fetch ride.sagSupporters left join fetch ride.sagRequests where ride.id = ?1"),
-	@NamedQuery(name = "Rride.findForSAGSupport", query = "select ride from Ride ride join ride.sagSupporters s where s.id = ?1")
+	@NamedQuery(name = "Ride.getWithHostAndSAG", query = "select ride from Ride ride left join fetch ride.hosts left join fetch ride.sagSupporters left join fetch ride.sagRequests where ride.id = :id"),
+	@NamedQuery(name = "Rride.findForSAGSupport", query = "select ride from Ride ride join ride.sagSupporters s where s.id = :userId"),
+	@NamedQuery(name = "Ride.getFromRefId", query = "select ride from Ride ride where referenceId = :referenceId")
 })
 public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport {
 	
@@ -47,6 +49,9 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	@SequenceGenerator(name = "rideSeq", sequenceName = "ride_seq", allocationSize = 1, initialValue = 1000)
 	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "rideSeq")
 	private Long id;
+	
+	@Column(name = "ref_id", nullable = false, unique = true)
+	private String referenceId;
 	
 	@Column(nullable = false)
 	private String name;
@@ -143,26 +148,27 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		return activeRequest;
 	}
 	
-	public SAGRequest requestSAG(User cyclist, Coordinates latLong) {
+	public SAGRequest requestSAG(
+			User cyclist, 
+			double lat, 
+			double lng, 
+			char code) 
+	{
 		if (!isActive()) {
 			// TODO: handle this
 			throw new RuntimeException("Ride is not active");
 		}
 		
-		SAGRequest req;
 		if (sagRequests == null) {
 			sagRequests = new HashSet<>();
-			req = SAGRequest.from(cyclist, this, latLong);
-			sagRequests.add(req);
 		}
 		else if (hasActiveSAGRequest(cyclist)) {
 			// TODO real exception
 			throw new RuntimeException("Cyclist cannot have more than one open SAG request");
 		}
-		else {
-			req = SAGRequest.from(cyclist, this, latLong);
-			sagRequests.add(req);
-		}
+		
+		SAGRequest req = SAGRequest.from(cyclist, this, lat, lng, code);
+		sagRequests.add(req);
 		
 		return req;	
 	}
@@ -243,10 +249,13 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		ride.setLocation(location);
 		ride.setHosts(Collections.singleton(admin));
 		ride.setHostedBy(hostOrg);
+		ride.setReferenceId(UUID.randomUUID().toString());
 		return ride;
 	}
 	
 	public static final String GET_WITH_HOST_AND_SAG = "#Ride.getWithHostAndSAG";
 
 	public static final String FIND_FOR_SAG_SUPPORT = "#Rride.findForSAGSupport";
+
+	public static final String GET_FROM_REF_ID = "#Ride.getFromRefId";
 }

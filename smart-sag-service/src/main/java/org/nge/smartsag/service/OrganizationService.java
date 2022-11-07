@@ -15,23 +15,16 @@ import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
 import org.nge.smartsag.dao.OrganizationDao;
-import org.nge.smartsag.dao.UserDao;
 import org.nge.smartsag.domain.Organization;
 import org.nge.smartsag.domain.Ride;
 import org.nge.smartsag.domain.User;
 
-import lombok.Getter;
-
 @Path("/orgs")
 @ApplicationScoped
-public class OrganizationService implements ContextedUserSupport {
+public class OrganizationService extends ContextedUserSupport {
 	
 	@Inject
 	OrganizationDao orgDao;
-	
-	@Inject
-	@Getter
-	UserDao userDao;
 	
 	@POST
 	@Transactional(TxType.REQUIRED)

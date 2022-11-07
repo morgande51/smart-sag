@@ -86,7 +86,7 @@ public class Organization implements IdentifiableDomain<Long>, UserVerificationS
 		Ride ride = rides.stream()
 				.filter(r -> r.getId().equals(rideId))
 				.findAny()
-				.orElseThrow(UnknownDomainException::new);
+				.orElseThrow(() -> new UnknownDomainException(Ride.class));
 	
 		// make sure this ride does not have any active SAG request
 		if (ride.hasActiveSAGRequest()) {

@@ -45,6 +45,9 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 	@Column(name = "status", nullable = false)
 	private SAGRequestStatusType status;
 	
+	@Column(name = "type", nullable = false)
+	private SAGRequestType type;
+	
 	@Embedded
 	private Coordinates lastKnowLocation;
 	
@@ -65,11 +68,22 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 		return status != SAGRequestStatusType.CANCELED && status != SAGRequestStatusType.COMPLETE;
 	}
 	
-	public static SAGRequest from(User user, Ride ride, Coordinates latLong) {		
+	public static SAGRequest from(
+			User user, 
+			Ride ride, 
+			double lat, 
+			double lng, 
+			char code) 
+	{
+		SAGRequestType type = SAGRequestType.from(code);
+		Coordinates latLong = Coordinates.from(lat, lng);
 		SAGRequest request = new SAGRequest();
 		request.setStatus(SAGRequestStatusType.NEW);
 		request.setRequestedAt(ZonedDateTime.now(ride.getEventTimeZone()));
 		request.setLastKnowLocation(latLong);
+		request.setType(type);
+		request.setCyclist(user);
+		request.setRide(ride);
 		request.setReferenceId(UUID.randomUUID().toString());
 		return request;
 	}

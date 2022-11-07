@@ -8,3 +8,22 @@ define a pop-up ride at the domain level = DONE!
 Setup Keycloak
 
 Get Lat/Long for a given Ride Location
+
+docker run -p 9080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin quay.io/keycloak/keycloak:19.0.1 start-dev
+
+
+docker run -p 8080:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin quay.io/keycloak/keycloak:19.0.1 start-dev
+
+
+Zx3NawUAEAM74ziKNlbquzdJq9mrlG2i
+
+
+node@14 is keg-only, which means it was not symlinked into /opt/homebrew,
+because this is an alternate version of another formula.
+
+If you need to have node@14 first in your PATH, run:
+  echo 'export PATH="/opt/homebrew/opt/node@14/bin:$PATH"' >> /Users/morgande1/.bash_profile
+
+For compilers to find node@14 you may need to set:
+  export LDFLAGS="-L/opt/homebrew/opt/node@14/lib"
+  export CPPFLAGS="-I/opt/homebrew/opt/node@14/include"

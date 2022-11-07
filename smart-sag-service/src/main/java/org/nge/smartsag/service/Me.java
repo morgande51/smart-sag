@@ -9,7 +9,7 @@ import org.nge.smartsag.domain.User;
 import lombok.Getter;
 
 @Getter
-public class ContextResponse implements Serializable {
+public class Me implements Serializable {
 
 	private User account;
 	
@@ -17,16 +17,16 @@ public class ContextResponse implements Serializable {
 	
 	private Long activeSAGRideId;
 	
-	public ContextResponse(User me) {
+	public Me(User me) {
 		this.account = me;
 	}
 	
-	public ContextResponse(User me, Ride ride) {
+	public Me(User me, Ride ride) {
 		this(me);
 		activeSAGRideId = ride.getId();
 	}
 	
-	public ContextResponse(User me, SAGRequest req) {
+	public Me(User me, SAGRequest req) {
 		this(me);
 		activeSAGRequestId = req.getId();
 	}

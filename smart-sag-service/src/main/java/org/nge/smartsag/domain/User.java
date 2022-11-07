@@ -93,7 +93,7 @@ public class User implements IdentifiableDomain<Long> {
 		return primaryOrgs.stream()
 				.filter(o -> o.getId().equals(id))
 				.findAny()
-				.orElseThrow(UnknownDomainException::new);
+				.orElseThrow(() -> new UnknownDomainException(Organization.class));
 	}
 	
 	protected void checkName(String name) {

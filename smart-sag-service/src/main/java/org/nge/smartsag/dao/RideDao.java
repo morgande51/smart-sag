@@ -11,4 +11,6 @@ public interface RideDao {
 	List<Ride> findSAGSupportRideForUser(Long userId);
 
 	List<Ride> findSAGSupportRideForUser(Long userId, boolean active);
+
+	Ride getRideFromRefId(String refId);
 }

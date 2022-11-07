@@ -1,18 +1,36 @@
 package org.nge.smartsag.service;
 
+import javax.inject.Inject;
+
+import org.jboss.logging.Logger;
 import org.nge.smartsag.dao.UserDao;
 import org.nge.smartsag.domain.User;
 
-public interface ContextedUserSupport {
+import io.quarkus.oidc.UserInfo;
+import io.quarkus.security.identity.SecurityIdentity;
+
+public abstract class ContextedUserSupport {
 	
-	public UserDao getUserDao();
+	private static final Logger log = Logger.getLogger(ContextedUserSupport.class);
 	
-	default User getAuthenticatedUser() {
-		return getUserDao().findByEmail(getAuthSubjectEmail());
+	@Inject
+	UserDao userDao;
+	
+	@Inject
+	SecurityIdentity securityIdentity;
+	
+	@Inject
+	UserInfo userInfo;
+	
+	protected User getAuthenticatedUser() {
+		return userDao.findByEmail(getAuthSubjectEmail());
 	}
 	
-	// TODO: get this from IAM
-	default String getAuthSubjectEmail() {
-		return "test@test.com";
+	protected String getAuthSubjectEmail() {
+		log.debugf("The subject: %s", securityIdentity.getPrincipal());
+		String username = securityIdentity.getPrincipal().getName();
+		String email = userInfo.getString("email");
+		log.debugf("Authenticated user[%s] email: %s", username, email);
+		return email;
 	}
 }

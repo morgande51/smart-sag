@@ -23,7 +23,7 @@ insert into org_admin (user_org_id, sag_user_id) values (2, 1);
 insert into org_admin (user_org_id, sag_user_id) values (2, 2);
 
 -- define ride for the org
-insert into ride (id, name, start_at, end_at, street_number, street_name, city, state, zip, latitude, longitude, hosting_org) values (1, 'test Ride', TO_TIMESTAMP('2022-01-01 01:00:00+01:00', 'YYYY-MM-DD HH:MI:SSTZH:TZM'), TO_TIMESTAMP('2023-01-01 01:00:00+01:00', 'YYYY-MM-DD HH:MI:SSTZH:TZM'), '13710', 'Central Avenue', 'Upper Marlboro', 'MD', '20721', 38.907231, -76.774564, 1);
+insert into ride (id, name, start_at, end_at, street_number, street_name, city, state, zip, latitude, longitude, hosting_org, ref_id) values (1, 'test Ride', TO_TIMESTAMP('2022-01-01 01:00:00+01:00', 'YYYY-MM-DD HH:MI:SSTZH:TZM'), TO_TIMESTAMP('2023-01-01 01:00:00+01:00', 'YYYY-MM-DD HH:MI:SSTZH:TZM'), '13710', 'Central Avenue', 'Upper Marlboro', 'MD', '20721', 38.907231, -76.774564, 1, '7141356c-1460-46f9-a0bd-d96cc5ba8a7d');
 
 -- define support for rides
 insert into ride_support (ride_id, sag_user_id) values (1, 3);
