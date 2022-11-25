@@ -6,7 +6,7 @@ import lombok.Getter;
 
 public enum SAGRequestStatusType {
 
-	NEW('N'), ACKNOWLEGED('A'), COMPLETE('F'), CANCELED('C');
+	NEW('N'), ACKNOWLEDGED('A'), COMPLETE('F'), CANCELED('C');
 	
 	@Getter
 	Character code;

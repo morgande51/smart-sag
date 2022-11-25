@@ -1,6 +1,6 @@
 package org.nge.smartsag.domain;
 
-import java.time.ZonedDateTime;
+import java.time.LocalTime;
 import java.util.UUID;
 
 import javax.persistence.Column;
@@ -16,6 +16,8 @@ import javax.persistence.NamedQuery;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
+import org.nge.smartsag.domain.SAGRequestException.Reason;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -25,7 +27,10 @@ import lombok.ToString;
 @Data
 @EqualsAndHashCode(exclude = {"cyclist","ride"})
 @ToString(exclude = {"cyclist","ride"})
-@NamedQueries(@NamedQuery(name = "SAGRequest.findReqForUser", query = "select req from SAGRequest req join req.cyclist c where c.id = ?1"))
+@NamedQueries({
+	@NamedQuery(name = "SAGRequest.findReqForUser", query = "select req from SAGRequest req left join req.cyclist c left join req.acknowledgedBy s where c.id = :userId or s.id = :userId"),
+	@NamedQuery(name = "SAGRequest.getFromRefId", query="select req from SAGRequest req where referenceId = :refId")
+})
 public class SAGRequest implements IdentifiableDomain<Long> {
 
 	@Id
@@ -36,11 +41,11 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 	@Column(name = "ref_id", nullable = false)
 	private String referenceId;
 	
-	@Column(name = "requested", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
-	private ZonedDateTime requestedAt;
+	@Column(name = "requested", nullable = false, columnDefinition = "TIME")
+	private LocalTime requestedAt;
 	
-	@Column(name = "completed", columnDefinition = "TIMESTAMP WITH TIME ZONE")
-	private ZonedDateTime completedAt;
+	@Column(name = "completed", columnDefinition = "TIME")
+	private LocalTime completedAt;
 	
 	@Column(name = "status", nullable = false)
 	private SAGRequestStatusType status;
@@ -56,16 +61,60 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 	private User cyclist;
 	
 	@ManyToOne
+	@JoinColumn(name = "support_id")
+	private User acknowledgedBy;
+	
+	@ManyToOne
 	@JoinColumn(name = "ride_id", nullable = false)
 	private Ride ride;
 	
-	public void close(SAGRequestStatusType sagStatus) {
-		this.status = sagStatus;
-		completedAt = ZonedDateTime.now(getRide().getStartAt().getZone());
-	}
-	
 	public boolean isActive() {
 		return status != SAGRequestStatusType.CANCELED && status != SAGRequestStatusType.COMPLETE;
+	}
+	
+	public void updateStatus(User user, SAGRequestStatusType status) {
+		if (!isActive()) {
+			throw new SAGRequestException(Reason.NOT_ACTIVE);
+		}
+		
+		switch (status) {
+			case ACKNOWLEDGED:
+				// only the SAG Support can acknowledge a request
+				if (!ride.isUserIn(ride.getSagSupporters(), user)) {
+					throw new SAGRequestException(Reason.UNAUTHORIZED);
+				}
+				setAcknowledgedBy(user);
+				break;
+				
+			case COMPLETE:
+				// The SAG Support, Marshals, Org Admins or User can complete a request
+				if (!cyclist.equals(user) &&
+					!ride.isUserIn(ride.getSagSupporters(), user) &&
+					!ride.isUserIn(ride.getMarshals(), user) &&
+					!ride.isUserIn(ride.getHostedBy().getAdmins(), user)) 
+				{
+					throw new SAGRequestException(Reason.UNAUTHORIZED);
+				}
+				setCompletedAt(LocalTime.now(ride.getEventTimeZone()));
+				break;
+				
+			case CANCELED:
+				// only the appropriate admins or user can cancel a request
+				if (!cyclist.equals(user) && 
+					!ride.isUserIn(ride.getMarshals(), user) &&
+					!ride.isUserIn(ride.getHostedBy().getAdmins(), user)) 
+				{
+					throw new SAGRequestException(Reason.UNAUTHORIZED);
+				}
+				setCompletedAt(LocalTime.now(ride.getEventTimeZone()));
+				break;
+				
+			default:
+				// the NEW status not allowed to be set for an update
+				throw new SAGRequestException(Reason.UNAUTHORIZED);		
+		}
+		
+		setStatus(status);
 	}
 	
 	public static SAGRequest from(
@@ -79,7 +128,7 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 		Coordinates latLong = Coordinates.from(lat, lng);
 		SAGRequest request = new SAGRequest();
 		request.setStatus(SAGRequestStatusType.NEW);
-		request.setRequestedAt(ZonedDateTime.now(ride.getEventTimeZone()));
+		request.setRequestedAt(LocalTime.now(ride.getEventTimeZone()));
 		request.setLastKnowLocation(latLong);
 		request.setType(type);
 		request.setCyclist(user);
@@ -89,4 +138,6 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 	}
 	
 	public static final String FIND_REQ_FOR_USER = "#SAGRequest.findReqForUser";
+
+	public static final String GET_FROM_REF_ID = "#SAGRequest.getFromRefId";
 }

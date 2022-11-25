@@ -24,8 +24,8 @@ import lombok.ToString;
 @Entity
 @Table(name = "sag_user")
 @Data
-@EqualsAndHashCode(exclude = {"primaryOrgs","adminOrgs"})
-@ToString(exclude = {"primaryOrgs", "adminOrgs"})
+@EqualsAndHashCode(exclude = {"primaryOrgs","adminOrgs","marshallRides"})
+@ToString(exclude = {"primaryOrgs", "adminOrgs","marshallRides"})
 @NamedQueries({
 	@NamedQuery(name = "User.getWithOrgs", query = "select user from User user join fetch user.primaryOrgs where user.id = ?1"),
 	@NamedQuery(name = "User.findByPhone", query = "select user from User user where user.phone = ?1"),
@@ -59,11 +59,14 @@ public class User implements IdentifiableDomain<Long> {
 	@JsonbTransient
 	private Set<Organization> adminOrgs;
 	
+	@ManyToMany(mappedBy = "marshals")
+	@JsonbTransient
+	private Set<Ride> marshallRides;
+	
 	public Organization createOrg(String name) {
 		Organization org = Organization.createOrg(name, this);
 		if (primaryOrgs == null) {
 			primaryOrgs = new HashSet<>();
-			System.out.print("yep, creating new instance");
 		}
 		else {
 			checkName(name);

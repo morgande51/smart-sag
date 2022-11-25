@@ -37,7 +37,7 @@ public class RidesService extends ContextedUserSupport {
 	@Inject
 	LocationSearchService locationService;
 	
-	@Path("/search")
+//	@Path("/search")
 	@GET
 	public Ride search(@QueryParam("refId") String refId) {
 		Ride ride = rideDao.getRideFromRefId(refId);
@@ -75,22 +75,22 @@ public class RidesService extends ContextedUserSupport {
 		return ride;
 	}
 	
-	@Path("/{id}/hosts")
+	@Path("/{id}/marshals")
 	@GET
-	public ChildrenReference<Long, User> getHosts(Long id) {
+	public ChildrenReference<Long, User> getMarshals(Long id) {
 		Ride ride = getRide(id);
-		return new ChildrenReference<>(ride.getHosts(), "users");
+		return new ChildrenReference<>(ride.getMarshals(), "users");
 	}
 	
-	@Path("/{id}/hosts")
+	@Path("/{id}/marshals")
 	@POST
 	@Transactional
 	public ChildrenReference<Long, User> addHost(Long id, @QueryParam("email") String email) {
 		Ride ride = getRide(id);
-		User host = userDao.findByEmail(email);
+		User marshal = userDao.findByEmail(email);
 		User admin = getAuthenticatedUser();
-		ride.addHost(admin, host);
-		return new ChildrenReference<>(ride.getHosts(), "users");
+		ride.addMarshal(admin, marshal);
+		return new ChildrenReference<>(ride.getMarshals(), "users");
 	}
 	
 	@Path("/{id}/support")

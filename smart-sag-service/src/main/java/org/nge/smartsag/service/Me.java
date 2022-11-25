@@ -1,35 +1,41 @@
 package org.nge.smartsag.service;
 
-import java.io.Serializable;
+import java.util.List;
 
 import org.nge.smartsag.domain.Ride;
-import org.nge.smartsag.domain.SAGRequest;
 import org.nge.smartsag.domain.User;
 
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
-public class Me implements Serializable {
-
+public class Me {
+	
+	@Setter
 	private User account;
 	
-	private Long activeSAGRequestId;
+	@Setter
+	private ActiveSAGRequest activeSAGRequest;
 	
-	private Long activeSAGRideId;
+	private Long[] activeSupportRideIds = new Long[]{};
 	
-	public Me(User me) {
-		this.account = me;
+	private Long[] activeMarshalRideIds = new Long[]{};
+	
+	private Long[] activeAdminRideIds = new Long[]{};
+	
+	public Me(User account) {
+		this.account = account;
+	}
+
+	public void setSupportRides(List<Ride> rides) {
+		activeSupportRideIds = rides.stream().map(Ride::getId).toArray(i -> new Long[i]);
 	}
 	
-	public Me(User me, Ride ride) {
-		this(me);
-		activeSAGRideId = ride.getId();
+	public void setMarshalRides(List<Ride> rides) {
+		activeMarshalRideIds = rides.stream().map(Ride::getId).toArray(i -> new Long[i]);
 	}
 	
-	public Me(User me, SAGRequest req) {
-		this(me);
-		activeSAGRequestId = req.getId();
+	public void setAdminRides(List<Ride> rides) {
+		activeAdminRideIds = rides.stream().map(Ride::getId).toArray(i -> new Long[i]);
 	}
-	
-	private static final long serialVersionUID = 1L;
 }

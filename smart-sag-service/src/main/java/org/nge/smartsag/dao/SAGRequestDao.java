@@ -6,7 +6,13 @@ import org.nge.smartsag.domain.SAGRequest;
 
 public interface SAGRequestDao {
 
-	List<SAGRequest> findSAGRequestForUser(Long id, boolean active);
+	List<SAGRequest> findRequestForUser(Long id, boolean active);
 
-	List<SAGRequest> findSAGRequestForUser(Long userId);
+	List<SAGRequest> findRequestForUser(Long userId);
+
+	SAGRequest getRequest(Long id);
+
+	SAGRequest getRequestFromRefId(String refId);
+
+	SAGRequest getRequestForUpdate(Long id);
 }

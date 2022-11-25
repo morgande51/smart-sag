@@ -29,4 +29,4 @@ insert into ride (id, name, start_at, end_at, street_number, street_name, city, 
 insert into ride_support (ride_id, sag_user_id) values (1, 3);
 
 -- define SAGRequest for rides
-insert into sag_request (id, ref_id, requested, status, user_id, ride_id, latitude, longitude) values (1, 'SAMPLE_REF_ID', TO_TIMESTAMP('2022-01-01 01:00:00+01:00', 'YYYY-MM-DD HH:MI:SSTZH:TZM'), 'N', 4, 1, 38.907231, -76.774564);
+insert into sag_request (id, ref_id, requested, status, type, user_id, ride_id, latitude, longitude) values (1, 'SAMPLE_REF_ID', '12:00:00', 'A', 'F', 4, 1, 38.907231, -76.774564);

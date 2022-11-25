@@ -1,5 +1,7 @@
 package org.nge.smartsag.service;
 
+import static org.nge.smartsag.service.ActiveSAGRequest.ContextType.*;
+
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
@@ -17,6 +19,7 @@ import org.nge.smartsag.dao.UserDao;
 import org.nge.smartsag.domain.Ride;
 import org.nge.smartsag.domain.SAGRequest;
 import org.nge.smartsag.domain.User;
+import org.nge.smartsag.service.ActiveSAGRequest.ContextType;
 
 @Path("/users")
 @RolesAllowed("users")
@@ -61,18 +64,34 @@ public class UserService extends ContextedUserSupport {
 	@GET
 	public Me whoAmiI() {
 		User me = getAuthenticatedUser();
-		List<SAGRequest> sagRequests = sagDao.findSAGRequestForUser(me.getId(), true);
-		List<Ride> rides = rideDao.findSAGSupportRideForUser(me.getId(), true);
+		List<SAGRequest> sagRequests = sagDao.findRequestForUser(me.getId(), true);
+		List<Ride> supportRides = rideDao.findRidesForSAGSupport(me.getId(), true);
+		List<Ride> marshalRides = rideDao.findRidesForMarshal(me.getId(), true);
+		List<Ride> adminRides = rideDao.findRidesForAdmin(me.getId(), true);
 		
-		Me response;
+		Me response = new Me(me);
 		if (sagRequests != null && !sagRequests.isEmpty()) {
-			response = new Me(me, sagRequests.get(0));
+			SAGRequest sagRequest = sagRequests.get(0);
+			ContextType context;
+			if (sagRequest.getCyclist().getId().equals(me.getId())) {
+				context = REQUEST;
+			}
+			else {
+				context = SUPPORT;
+			}
+			response.setActiveSAGRequest(new ActiveSAGRequest(context, sagRequest.getId()));
 		}
-		else if (rides != null && !rides.isEmpty()) {
-			response = new Me(me, rides.get(0));
+		
+		if (supportRides != null && !supportRides.isEmpty()) {
+			response.setSupportRides(supportRides);
 		}
-		else {
-			response = new Me(me);
+		
+		if (marshalRides != null && !marshalRides.isEmpty()) {
+			response.setMarshalRides(marshalRides);
+		}
+		
+		if (adminRides != null && !adminRides.isEmpty()) {
+			response.setAdminRides(adminRides);
 		}
 		
 		log.debugf("Context Response: %s", response);

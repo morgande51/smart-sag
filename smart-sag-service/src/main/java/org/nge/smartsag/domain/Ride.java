@@ -36,12 +36,14 @@ import lombok.ToString;
 
 @Entity
 @Data
-@EqualsAndHashCode(exclude = {"hosts","hostedBy","sagSupporters","sagRequests"})
-@ToString(exclude = {"hosts","hostedBy","sagSupporters","sagRequests"})
+@EqualsAndHashCode(exclude = {"marshals","hostedBy","sagSupporters","sagRequests"})
+@ToString(exclude = {"marshals","hostedBy","sagSupporters","sagRequests"})
 @NamedQueries({
-	@NamedQuery(name = "Ride.getWithHostAndSAG", query = "select ride from Ride ride left join fetch ride.hosts left join fetch ride.sagSupporters left join fetch ride.sagRequests where ride.id = :id"),
-	@NamedQuery(name = "Rride.findForSAGSupport", query = "select ride from Ride ride join ride.sagSupporters s where s.id = :userId"),
-	@NamedQuery(name = "Ride.getFromRefId", query = "select ride from Ride ride where referenceId = :referenceId")
+	@NamedQuery(name = "Ride.getWithHostAndSAG", query = "select ride from Ride ride left join fetch ride.marshals left join fetch ride.sagSupporters left join fetch ride.sagRequests where ride.id = :id"),
+	@NamedQuery(name = "Ride.getFromRefId", query = "select ride from Ride ride where referenceId = :referenceId"),
+	@NamedQuery(name = "Ride.findForSAGSupport", query = "select ride from Ride ride join ride.sagSupporters s where s.id = :userId"),
+	@NamedQuery(name = "Ride.findForMarshals", query = "select ride from Ride ride join ride.marshals m where m.id = :userId"),
+	@NamedQuery(name = "Ride.findForAdmins", query = "select ride from Ride ride join ride.hostedBy org join org.admins admin where admin.id = :userId")
 })
 public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport {
 	
@@ -74,7 +76,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
 			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
 	@JsonbTransient
-	private Set<User> hosts;
+	private Set<User> marshals;
 	
 	@ManyToMany(cascade = CascadeType.ALL)
 	@JoinTable(name = "ride_support",
@@ -98,7 +100,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		return now.isAfter(startAt.toInstant()) && now.isBefore(endAt.toInstant());
 	}
 	
-	public boolean hasSagSupporters() {
+	public boolean hasSAGSupporters() {
 		return sagSupporters != null && !sagSupporters.isEmpty();
 	}
 	
@@ -155,8 +157,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 			char code) 
 	{
 		if (!isActive()) {
-			// TODO: handle this
-			throw new RuntimeException("Ride is not active");
+			throw new SAGRequestException(Reason.RIDE_INACTIVE);
 		}
 		
 		if (sagRequests == null) {
@@ -164,7 +165,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		}
 		else if (hasActiveSAGRequest(cyclist)) {
 			// TODO real exception
-			throw new RuntimeException("Cyclist cannot have more than one open SAG request");
+			throw new SAGRequestException(Reason.DUPLICATE_REQ);
 		}
 		
 		SAGRequest req = SAGRequest.from(cyclist, this, lat, lng, code);
@@ -173,10 +174,11 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		return req;	
 	}
 	
+	/*
 	public SAGRequest cancelSAGRequest(String referenceId, User user) {
 		SAGRequest request = findSAG(referenceId);
 		if (!request.getCyclist().getId().equals(user.getId()) && 
-			!isUserIn(hosts, user) && 
+			!isUserIn(marshals, user) && 
 			!isUserIn(hostedBy.getAdmins(), user))
 		{
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
@@ -188,7 +190,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	public SAGRequest completeSAGRequest(String referenceId, User user) {
 		SAGRequest request = findSAG(referenceId);
 		if (!isUserIn(sagSupporters, user) && 
-			!isUserIn(hosts, user) && 
+			!isUserIn(marshals, user) && 
 			!isUserIn(hostedBy.getAdmins(), user))
 		{
 			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
@@ -196,19 +198,20 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		request.close(SAGRequestStatusType.COMPLETE);
 		return request;
 	}
+	*/
 	
-	public void addHost(User admin, User user) {
+	public void addMarshal(User admin, User user) {
 		verifyUserIn(hostedBy.getAdmins(), admin);
-		hosts.add(user);
+		marshals.add(user);
 	}
 	
-	public void removeHost(User admin, User user) {
+	public void removeMarshal(User admin, User user) {
 		verifyUserIn(hostedBy.getAdmins(), admin);
-		if (hosts.stream().count() == 1) {
+		if (marshals.stream().count() == 1) {
 			// TODO: must be one host present
 			throw new RuntimeException();
 		}
-		hosts.remove(user);
+		marshals.remove(user);
 	}
 	
 	public void addSAG(User admin, User sag) {
@@ -226,7 +229,7 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	
 	public void verifyAccess(User user) {
 		if (!hasActiveSAGRequest(user) && 
-			!isUserIn(hosts, user) && 
+			!isUserIn(marshals, user) && 
 			!isUserIn(sagSupporters, user) &&
 			!isUserIn(hostedBy.getAdmins(), user)) 
 		{
@@ -247,15 +250,19 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		ride.setStartAt(startAt);
 		ride.setEndAt(endAt);
 		ride.setLocation(location);
-		ride.setHosts(Collections.singleton(admin));
+		ride.setMarshals(Collections.singleton(admin));
 		ride.setHostedBy(hostOrg);
 		ride.setReferenceId(UUID.randomUUID().toString());
 		return ride;
 	}
 	
 	public static final String GET_WITH_HOST_AND_SAG = "#Ride.getWithHostAndSAG";
-
-	public static final String FIND_FOR_SAG_SUPPORT = "#Rride.findForSAGSupport";
-
+	
 	public static final String GET_FROM_REF_ID = "#Ride.getFromRefId";
+
+	public static final String FIND_FOR_SAG_SUPPORT = "#Ride.findForSAGSupport";
+	
+	public static final String FIND_FOR_MARSHALS = "#Ride.findForMarshals";
+	
+	public static final String FIND_FOR_ADMINS = "#Ride.findForAdmins";
 }
