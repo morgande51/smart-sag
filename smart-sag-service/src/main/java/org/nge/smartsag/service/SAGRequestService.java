@@ -17,8 +17,10 @@ import org.nge.smartsag.dao.RideDao;
 import org.nge.smartsag.dao.SAGRequestDao;
 import org.nge.smartsag.domain.Ride;
 import org.nge.smartsag.domain.SAGRequest;
+import org.nge.smartsag.domain.SAGRequestStatusType;
 import org.nge.smartsag.domain.UnknownDomainException;
 import org.nge.smartsag.domain.User;
+import org.nge.smartsag.notifications.SAGRequestEventType;
 
 @Path("/sagrequests")
 @RolesAllowed("users")
@@ -33,7 +35,7 @@ public class SAGRequestService extends ContextedUserSupport {
 	SAGRequestDao sagRequestDao;
 	
 	@Inject
-	Event<SAGRequest> sagEvent;
+	Event<SAGRequest> sagEvents;
 	
 	@POST
 	@Transactional
@@ -45,7 +47,7 @@ public class SAGRequestService extends ContextedUserSupport {
 				request.getLatitude(), 
 				request.getLongitude(),
 				request.getCode());
-		sagEvent.fire(sagRequest);
+		getEventFor(sagRequest.getStatus()).fire(sagRequest);
 		return sagRequest;
 	}
 	
@@ -62,6 +64,7 @@ public class SAGRequestService extends ContextedUserSupport {
 		User user = getAuthenticatedUser();
 		SAGRequest sagRequest = sagRequestDao.getRequestForUpdate(id);
 		sagRequest.updateStatus(user, request.getStatus());
+		getEventFor(sagRequest.getStatus()).fire(sagRequest);
 		return sagRequest;
 	}
 	
@@ -73,5 +76,9 @@ public class SAGRequestService extends ContextedUserSupport {
 			throw new UnknownDomainException(SAGRequest.class);
 		}
 		return request;
+	}
+	
+	protected Event<SAGRequest> getEventFor(SAGRequestStatusType status) {
+		return sagEvents.select(SAGRequestEventType.getLiteral(status));
 	}
 }

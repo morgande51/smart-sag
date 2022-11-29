@@ -99,11 +99,24 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 				break;
 				
 			case CANCELED:
-				// only the appropriate admins or user can cancel a request
-				if (!cyclist.equals(user) && 
-					!ride.isUserIn(ride.getMarshals(), user) &&
-					!ride.isUserIn(ride.getHostedBy().getAdmins(), user)) 
-				{
+				// only the user can cancel a request
+				if (!cyclist.equals(user)) {
+					throw new SAGRequestException(Reason.UNAUTHORIZED);
+				}
+				setCompletedAt(LocalTime.now(ride.getEventTimeZone()));
+				break;
+				
+			case ABORTED:
+				// only the ride marshals can abort a request
+				if (!!ride.isUserIn(ride.getMarshals(), user)) {
+					throw new SAGRequestException(Reason.UNAUTHORIZED);
+				}
+				setCompletedAt(LocalTime.now(ride.getEventTimeZone()));
+				break;
+				
+			case DELETED:
+				// only the ride hosts can abort a request
+				if (!ride.isUserIn(ride.getHostedBy().getAdmins(), user)) {
 					throw new SAGRequestException(Reason.UNAUTHORIZED);
 				}
 				setCompletedAt(LocalTime.now(ride.getEventTimeZone()));
