@@ -27,7 +27,7 @@ public abstract class ContextedUserSupport {
 	}
 	
 	protected String getAuthSubjectEmail() {
-		log.debugf("The subject: %s", securityIdentity.getPrincipal());
+		log.tracef("The subject: %s", securityIdentity.getPrincipal());
 		String username = securityIdentity.getPrincipal().getName();
 		String email = userInfo.getString("email");
 		log.debugf("Authenticated user[%s] email: %s", username, email);

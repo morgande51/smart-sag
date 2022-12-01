@@ -67,10 +67,6 @@ public class SAGRequestBroadcaster {
 		SseBroadcaster broadcaster;
 		if (!targetedRequestBroadcasterMap.containsKey(id)) {
 			broadcaster = sse.newBroadcaster();
-			broadcaster.onClose((s) -> {
-				log.debug("The all requests broadcaster is closing this connection");
-				s.send(sse.newEvent("this broadcaster is closing..."));
-			});
 			targetedRequestBroadcasterMap.put(id, broadcaster);
 		}
 		else {
@@ -84,40 +80,48 @@ public class SAGRequestBroadcaster {
 			@Observes(during = AFTER_SUCCESS)
 			@SAGRequestEvent(NOTCOMPLETED)
 			final SAGRequest request) 
-	{	
+	{
 		Long key = request.getId();
+		log.debugf("About to broadcast update to the target: %s...", key);
 		OutboundSseEvent event = sse.newEventBuilder()
 				.data(request)
 				.mediaType(APPLICATION_JSON_TYPE)
 				.build();
-		requestsBroadcaster.broadcast(event);
+		broadcastEvent(requestsBroadcaster, event);
 		
 		targetedRequestBroadcasterMap.entrySet().stream()
 			.filter(e -> e.getKey().equals(key))
 			.findAny()
-			.ifPresent(e -> {
-				log.debugf("About to broadcase to the target: %s", key);
-				e.getValue().broadcast(event);
-			});
+			.ifPresent(e -> broadcastEvent(e.getValue(), event));
 		
-		log.debugf("Broadcast update for request: %s is completed.", request.getId());
+		log.debugf("... broadcast is completed.");
 	}
 	
 	public void broadcastCompletedRequest(
 			@Observes(during = AFTER_SUCCESS)
 			@SAGRequestEvent(COMPLETED)
 			final SAGRequest request) 
-	{	
+	{
 		Long key = request.getId();
+		log.debugf("About to broadcast completed request for target: %s...", key);
 		OutboundSseEvent event = sse.newEventBuilder()
 				.data(request)
 				.mediaType(APPLICATION_JSON_TYPE)
 				.build();
-		requestsBroadcaster.broadcast(event);
-		
+		broadcastEvent(requestsBroadcaster, event);
+	
 		Optional.ofNullable(targetedRequestBroadcasterMap.remove(key))
-			.ifPresent(b -> b.broadcast(event));
+			.ifPresent(b -> broadcastEvent(b, event));
 		
-		log.debugf("Broadcast update for request: %s is completed.", request.getId());
+		log.debugf("... broadcast is completed.");
+	}
+	
+	protected void broadcastEvent(SseBroadcaster broadcaster, OutboundSseEvent event) {
+		try {
+			broadcaster.broadcast(event);
+		}
+		catch (IllegalStateException e) {
+			log.tracef(e, "Unable to broadcast because there are no listener open");
+		}
 	}
 }
