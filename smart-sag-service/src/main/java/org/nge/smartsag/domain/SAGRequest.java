@@ -1,8 +1,13 @@
 package org.nge.smartsag.domain;
 
 import java.time.LocalTime;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
+import javax.json.bind.annotation.JsonbTransient;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
@@ -13,6 +18,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
@@ -68,8 +74,12 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 	@JoinColumn(name = "ride_id", nullable = false)
 	private Ride ride;
 	
+	@OneToMany(mappedBy = "request", orphanRemoval = true, cascade = CascadeType.ALL)
+	@JsonbTransient
+	private Set<SAGRequestNote> notes;
+	
 	public boolean isActive() {
-		return status != SAGRequestStatusType.CANCELED && status != SAGRequestStatusType.COMPLETE;
+		return status == SAGRequestStatusType.NEW && status != SAGRequestStatusType.ACKNOWLEDGED;
 	}
 	
 	public void updateStatus(User user, SAGRequestStatusType status) {
@@ -79,8 +89,10 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 		
 		switch (status) {
 			case ACKNOWLEDGED:
-				// only the SAG Support can acknowledge a request
-				if (!ride.isUserIn(ride.getSagSupporters(), user)) {
+				// only the SAG Support or Org Admins can acknowledge a request
+				if (!ride.isUserIn(ride.getSagSupporters(), user) &&
+					!ride.isUserIn(ride.getHostedBy().getAdmins(), user))
+				{
 					throw new SAGRequestException(Reason.UNAUTHORIZED);
 				}
 				setAcknowledgedBy(user);
@@ -108,7 +120,7 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 				
 			case ABORTED:
 				// only the ride marshals can abort a request
-				if (!!ride.isUserIn(ride.getMarshals(), user)) {
+				if (!ride.isUserIn(ride.getMarshals(), user)) {
 					throw new SAGRequestException(Reason.UNAUTHORIZED);
 				}
 				setCompletedAt(LocalTime.now(ride.getEventTimeZone()));
@@ -128,6 +140,67 @@ public class SAGRequest implements IdentifiableDomain<Long> {
 		}
 		
 		setStatus(status);
+	}
+	
+	public Set<SAGRequestNote> getNotes(User user) {
+		ride.verifyUserIn(ride.getHostedBy().getAdmins(), user);
+		return notes;
+	}
+	
+	public SAGRequestNote addNote(User user, Role role, String noteStr) {
+		ride.verifyRoleForRide(user, role);
+		SAGRequestNote note;
+		if (notes == null) {
+			notes = new HashSet<>();
+			note = SAGRequestNote.create(noteStr, user, this, role);
+			notes.add(note);
+		}
+		else {
+			Optional<SAGRequestNote> targetNote = notes.stream()
+					.filter(n -> n.getId().equals(SAGRequestNotePK.create(user, this, role)))
+					.findAny();
+			
+			if (targetNote.isPresent()) {
+				note = targetNote.get();
+				note.setNote(noteStr);
+			}
+			else {
+				note = SAGRequestNote.create(noteStr, user, this, role);
+				notes.add(note);
+			}
+		}
+		return note;
+	}
+	
+	public SAGRequestNote getNoteForUser(User user, Role role) {
+		ride.verifyRoleForRide(user, role);
+		
+		SAGRequestNote note = null;
+		if (notes != null) {
+			note = notes.stream()
+					.filter(n -> n.getId().equals(SAGRequestNotePK.create(user, this, role)))
+					.findAny()
+					.orElse(null);
+		}
+		return note;
+	}
+	
+	public void removeNoteForUser(User user, Role role, Optional<User> forUser) {
+		SAGRequestNotePK key;
+		
+		if (ride.isUserIn(ride.getHostedBy().getAdmins(), user)) {
+			// user can delete any note
+			User targetUser = forUser.orElse(user);
+			key = SAGRequestNotePK.create(targetUser, this, role);
+		}
+		else {
+			ride.verifyRoleForRide(user, role);
+			key = SAGRequestNotePK.create(user, this, role);
+		}
+		
+		if (!notes.removeIf(note -> note.getId().equals(key))) {
+			throw new UnknownDomainException(SAGRequestNote.class);
+		}
 	}
 	
 	public static SAGRequest from(

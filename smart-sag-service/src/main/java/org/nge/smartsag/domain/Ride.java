@@ -72,16 +72,16 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	private Organization hostedBy;
 	
 	@ManyToMany(cascade = CascadeType.ALL)
-	@JoinTable(name = "ride_host",
+	@JoinTable(name = "ride_marshal",
 	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
-			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
+			   inverseJoinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"))
 	@JsonbTransient
 	private Set<User> marshals;
 	
 	@ManyToMany(cascade = CascadeType.ALL)
 	@JoinTable(name = "ride_support",
 	           joinColumns = @JoinColumn(name = "ride_id", referencedColumnName = "id"),
-			   inverseJoinColumns = @JoinColumn(name = "sag_user_id", referencedColumnName = "id"))
+			   inverseJoinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"))
 	@JsonbTransient
 	private Set<User> sagSupporters;
 	
@@ -174,32 +174,6 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 		return req;	
 	}
 	
-	/*
-	public SAGRequest cancelSAGRequest(String referenceId, User user) {
-		SAGRequest request = findSAG(referenceId);
-		if (!request.getCyclist().getId().equals(user.getId()) && 
-			!isUserIn(marshals, user) && 
-			!isUserIn(hostedBy.getAdmins(), user))
-		{
-			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
-		}
-		request.close(SAGRequestStatusType.CANCELED);
-		return request;
-	}
-	
-	public SAGRequest completeSAGRequest(String referenceId, User user) {
-		SAGRequest request = findSAG(referenceId);
-		if (!isUserIn(sagSupporters, user) && 
-			!isUserIn(marshals, user) && 
-			!isUserIn(hostedBy.getAdmins(), user))
-		{
-			throw new SAGRequestException(referenceId, Reason.UNAUTHORIZED);
-		}
-		request.close(SAGRequestStatusType.COMPLETE);
-		return request;
-	}
-	*/
-	
 	public void addMarshal(User admin, User user) {
 		verifyUserIn(hostedBy.getAdmins(), admin);
 		marshals.add(user);
@@ -234,6 +208,25 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 			!isUserIn(hostedBy.getAdmins(), user)) 
 		{
 			throw new InvalidAdminException(user);
+		}
+	}
+	
+	public void verifyRoleForRide(User user, Role role) {
+		switch (role) {
+			case HOST:
+				verifyUserIn(hostedBy.getAdmins(), user);
+				break;
+				
+			case MARSHAL:
+				verifyUserIn(marshals, user);
+				break;
+				
+			case SUPPORT:
+				verifyUserIn(sagSupporters, user);
+				break;
+				
+			default:
+				throw new InvalidAdminException(user); 
 		}
 	}
 	
