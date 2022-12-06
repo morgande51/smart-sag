@@ -30,7 +30,7 @@ public abstract class ContextedUserSupport {
 		log.tracef("The subject: %s", securityIdentity.getPrincipal());
 		String username = securityIdentity.getPrincipal().getName();
 		String email = userInfo.getString("email");
-		log.debugf("Authenticated user[%s] email: %s", username, email);
+		log.tracef("Authenticated user[%s] email: %s", username, email);
 		return email;
 	}
 }

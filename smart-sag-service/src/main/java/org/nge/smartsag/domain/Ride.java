@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import javax.json.bind.annotation.JsonbDateFormat;
 import javax.json.bind.annotation.JsonbTransient;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -58,9 +59,11 @@ public class Ride implements IdentifiableDomain<Long> , UserVerificationSupport 
 	@Column(nullable = false)
 	private String name;
 	
+	@JsonbDateFormat(value = JsonbDateFormat.TIME_IN_MILLIS)
 	@Column(name = "start_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
 	private ZonedDateTime startAt;
 	
+	@JsonbDateFormat(value = JsonbDateFormat.TIME_IN_MILLIS)
 	@Column(name = "end_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
 	private ZonedDateTime endAt;
 	

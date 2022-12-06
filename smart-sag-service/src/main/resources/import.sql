@@ -33,4 +33,4 @@ insert into ride_marshal (ride_id, user_id) values (1, 5);
 insert into ride_support (ride_id, user_id) values (1, 3);
 
 -- define SAGRequest for rides
-insert into sag_request (id, ref_id, requested, status, type, user_id, ride_id, latitude, longitude) values (1, 'SAMPLE_REF_ID', '12:00:00', 'N', 'F', 4, 1, 38.907231, -76.774564);
+insert into sag_request (id, ref_id, requested, status, type, user_id, ride_id, latitude, longitude) values (1, 'SAMPLE_REF_ID', TO_TIMESTAMP('2022-12-05 21:30:00-05:00', 'YYYY-MM-DD HH24:MI:SSTMZ'), 'N', 'F', 4, 1, 38.907231, -76.774564);
